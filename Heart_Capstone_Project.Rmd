@@ -16,19 +16,32 @@ library(dplyr)
 library(leaflet)
 library(plotly)
 library(DT)
+library(glmnet)
+library(caret)
 ```
+
+
 Heart Disease Data Analysis
 =====================================  
- 
 
 Column {data-height = 4000 .tabset}
 -----------------------------------------------------------------------
 ### Raw Data Display
+
 ```{r}
-heart = read_csv("/Users/erinwang/ds4ph-bme/CapstoneProject/heart.csv")
+heart = read_csv("https://raw.githubusercontent.com/Erinywang/ds4ph_Capstone/main/heart.csv") %>% 
+    rename(rtbp = trtbps, rtecg = restecg) %>%
+    mutate(sex = as.factor(sex), cp = as.factor(cp), fbs = as.logical(fbs)) 
+
 htdf = select(heart,-"output")
 datatable(htdf)
+
+ht = select(heart, age, sex, cp, rtbp, chol, fbs, output)
+dt = sort(sample(nrow(ht), nrow(ht)*.8))
+ht_train = ht[dt,]
+ht_test = ht[-dt,]
 ```
+
 Column {data-width = 400}
 -----------------------------------------------------------------------
 ### Variable Name Description
@@ -40,18 +53,17 @@ A data set contains variables related to heart disease of 303 object. The raw da
 Variables:
 <br>1. age
 <br>2. sex
-<br>3. chest pain tyep (4 values)
+<br>3. chest pain type (4 values)
 <br>4. resting blood pressure
-<br>5. serum cholestoral level
+<br>5. serum cholesterol level
 <br>6. fasting blood sugar >120mg/dl
 <br>7. resting electrocardiographic results (3 values)
 <br>8. maximum heart rate achieved
 <br>9. exercise induced angina
 <br>10. oldpeak = ST depression induced by exercise relative to rest
 <br>11. the slope of the peak exercise ST segmen
-<br>12. number of major vessels (0-3) colored by flourosopy
-<br>13. thal: 0 = normal; 1 = fixed defect; 2 = reversable defect
-
+<br>12. number of major vessels (0-3) colored by fluoroscope
+<br>13. thal: 0 = normal; 1 = fixed defect; 2 = reversible defect
 
 Column {data-width = 400}
 -----------------------------------------------------------------------
@@ -69,9 +81,57 @@ g + geom_tile()
 Heart Disease Logistic Regression
 =====================================  
 
-```{r}
+Column
+-----------------------------------------------------------------------
+### GLM
 
+```{r}
+fit = glm(formula = output ~ age + sex + cp + rtbp + chol + fbs,
+          family = "binomial", data = ht_train)
+summary(fit)
+
+prob = predict(fit)
+
+predict = rep(0, nrow(ht))
+predict[prob > .5] = 1
+
+conf_matrix = table(predicted_values = predict, actual_values = ht$output)
+
+accuracy = mean(predict == ht$output)
+sensitivity(conf_matrix)
+specificity(conf_matrix)
 ```
+
+Column
+-----------------------------------------------------------------------
+### Lasso
+
+```{r}
+x_train = model.matrix(output ~ age + sex + cp + rtbp + chol + fbs, data = ht_train)
+y_train = ht_train$output
+
+fit1 = cv.glmnet(x_train, y_train, alpha = 0.2, family = "binomial", type.measure = "mse")
+plot(fit1)
+
+lambda = fit1$lambda.1se
+coef(fit1,s = lambda)
+
+
+x_test = model.matrix(output ~ age + sex + cp + rtbp + chol + fbs, data = ht_test)
+y_test = ht_test$output
+
+prob1 = predict(fit1, newx = x_test, s = lambda, type = "response")
+
+predict1 = rep(0, nrow(ht_test))
+predict1[prob1 > .5] = 1
+
+conf_matrix1 = table(predicted_values = predict1, actual_values = ht_test$output)
+
+accuracy1 = mean(predict1 == ht_test$output)
+sensitivity(conf_matrix1)
+specificity(conf_matrix1)
+```
+
 
   
 User Self Diagnosis
@@ -81,6 +141,7 @@ Column {.sidebar data-width = 200}
 -----------------------------------------------------------------------
 
 ```{r}
+
 numericInput("age", "Age", value = 0)
 
 selectInput("sex", "Sex", choices = list("Male", "Female"), selected = "Male")
@@ -91,11 +152,7 @@ sliderInput("bps", "Resting Blood Pressure (mm Hg)", min = 90, max = 200, value 
 
 sliderInput("chol", "Serum Cholestoral (mg/dl)", min = 120, max = 600, value = 200)
 
-checkboxInput("fbs", "Fasting Blood Sugar > 120mg/dl", value = FALSE)
-
-sliderInput("thalach", "Maximum Heart Rate Achieved", min = 70, max = 210, value = 150)
-
-checkboxInput("exang", "Exercise Induced Angina", value = FALSE)
+sliderInput("fbs", "Fasting Blood Sugar", min = 50, max = 200, value = 80)
 
 ```
 
