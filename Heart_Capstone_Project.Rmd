@@ -18,6 +18,7 @@ library(plotly)
 library(DT)
 library(glmnet)
 library(caret)
+library(ggiraphExtra)
 ```
 
 
@@ -29,14 +30,14 @@ Column {data-height = 4000 .tabset}
 ### Raw Data Display
 
 ```{r}
-heart = read_csv("https://raw.githubusercontent.com/Erinywang/ds4ph_Capstone/main/heart.csv") %>% 
-    rename(rtbp = trtbps, rtecg = restecg) %>%
+heart = read_csv("https://raw.githubusercontent.com/Erinywang/ds4ph_Capstone/main/heart.csv")  
+heart1 = heart %>% rename(rtbp = trtbps, rtecg = restecg) %>%
     mutate(sex = as.factor(sex), cp = as.factor(cp), fbs = as.logical(fbs)) 
 
 htdf = select(heart,-"output")
 datatable(htdf)
 
-ht = select(heart, age, sex, cp, rtbp, chol, fbs, output)
+ht = select(heart1, age, sex, cp, rtbp, chol, fbs, output)
 dt = sort(sample(nrow(ht), nrow(ht)*.8))
 ht_train = ht[dt,]
 ht_test = ht[-dt,]
@@ -125,7 +126,7 @@ prob1 = predict(fit1, newx = x_test, s = lambda, type = "response")
 predict1 = rep(0, nrow(ht_test))
 predict1[prob1 > .5] = 1
 
-conf_matrix1 = table(predicted_values = predict1, actual_values = ht_test$output)
+conf_matrix1 = table(predicted_values = predict1, actual_values = y_test)
 
 accuracy1 = mean(predict1 == ht_test$output)
 sensitivity(conf_matrix1)
@@ -159,19 +160,34 @@ sliderInput("fbs", "Fasting Blood Sugar", min = 50, max = 200, value = 80)
 Column {data-width=650}
 -----------------------------------------------------------------------
 
-### Chart A
+### Prediction model based on Sex and Age
 
-```{r}
+```{r, echo=FALSE}
+#renderplot({
+  fit3 = glm(formula = output ~ age + sex,
+          family = "binomial", data = ht_train)
+summary(fit3)
+equation1=function(x){coef(fit3)[2]*x+coef(fit3)[1]}
+equation2=function(x){coef(fit3)[2]*x+coef(fit3)[1]+coef(fit3)[3]}
 
+ggplot(ht_train,aes(y=output,x=age,color=sex))+geom_point()+
+        stat_function(fun=equation1,geom="line",color=scales::hue_pal()(2)[1])+
+        stat_function(fun=equation2,geom="line",color=scales::hue_pal()(2)[2])
+ggPredict(fit3,se=TRUE,interactive=TRUE)
+#})
 ```
 
 Column {data-width=350}
 -----------------------------------------------------------------------
 
-### Chart B
+### Odd Ratio and Chi-Square or Fit1
 
 ```{r}
 
+lreg.or <-exp(cbind(OR = coef(fit1), confint(fit1)))
+round(lreg.or, digits=4)
+
+anova(fit,test="Chisq")
 ```
 
 ### Chart C
@@ -179,4 +195,3 @@ Column {data-width=350}
 ```{r}
 
 ```
-
