@@ -180,7 +180,7 @@ ggPredict(fit3,se=TRUE,interactive=TRUE)
 Column {data-width=350}
 -----------------------------------------------------------------------
 
-### Odd Ratio and Chi-Square or Fit1
+### Odd Ratio and Chi-Square of Fit1
 
 ```{r}
 
