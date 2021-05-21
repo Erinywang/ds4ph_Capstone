@@ -13,12 +13,10 @@ library(tidyverse)
 library(ggplot2)
 library(reshape2)
 library(dplyr)
-library(leaflet)
 library(plotly)
 library(DT)
 library(glmnet)
 library(caret)
-library(bslib)
 ```
 
 
@@ -158,6 +156,8 @@ renderPrint({
   else if (results() < 0.75) print("Meh")
   else print("Your heart is in danger... Go see a doctor! NOW!")
   
+  print("*Disclaimer: This app is not intended for medical purposes.*")
+  
   })
 
 ```
@@ -192,7 +192,7 @@ Column {data-width = 400}
 ### Description
 
 Data:
-<br> A data set containing 70000 records of patient data. The raw data is downloaded from kaggle.com, which is a database website where data sets are publicly accessible for self investigation. A link can be find here: 
+<br> A data set containing 70000 records of patient data. The raw data is downloaded from kaggle.com, which is a database website where data sets are publicly accessible for self investigation. A link can be found here: 
 <br> [link](https://www.kaggle.com/sulianova/cardiovascular-disease-dataset)
 
 There are 3 types of input features:
