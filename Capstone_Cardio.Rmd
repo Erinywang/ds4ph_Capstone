@@ -22,10 +22,151 @@ library(bslib)
 ```
 
 
-Data Set
+Self Assessment
 =====================================  
 
 Column {data-height = 4000 .tabset}
+-----------------------------------------------------------------------
+
+### User info
+
+```{r}
+
+numericInput("age", "Age", step = 1, value = 40)
+
+selectInput("sex", "Sex", choices = list("Male", "Female"), selected = "Male")
+
+numericInput("height", "Height (cm)", step = 1, value = 170)
+
+numericInput("weight", "Weight (kg)", step = 1, value = 70)
+
+selectInput("smoke", "Do you smoke?", choices = list("Yes", "No"), selected = "No")
+
+selectInput("alco", "Do you use alcohol?", choices = list("Yes", "No"), selected = "No")
+
+selectInput("active", "Do you exercise?", choices = list("Yes", "No"), selected = "No")
+
+```
+
+
+Column
+----------------------------------------------------------------------
+
+### User info
+
+```{r}
+
+sliderInput("ap_hi", "Systolic Blood Pressure (mmHg)", min = 80, max = 200, value = 120)
+
+sliderInput("ap_lo", "Diastolic Blood Pressure (mmHg)", min = 40, max = 120, value = 80)
+
+checkboxInput("idkbp", "IDK my blood pressure.", value = FALSE)
+
+sliderInput("chol", "Serum Cholestoral (mg/dL)", min = 120, max = 600, value = 200)
+
+checkboxInput("idkchol", "IDK my serum cholesterol.", value = FALSE)
+
+sliderInput("gluc", "Fasting Blood Sugar (mg/dL)", min = 50, max = 200, value = 80)
+
+checkboxInput("idkgluc", "IDK my blood sugar.", value = FALSE)
+
+actionButton("submit", "Get my cardic health estimate")
+```
+
+
+Column
+-----------------------------------------------------------------------
+
+### Result 
+
+```{r}
+
+results = eventReactive(input$submit, {
+  
+  if(input$sex == "Male") user_sex = 2 else user_sex = 1
+  
+  if(input$idkbp) {
+    user_ap_hi = cardio %>% 
+      mutate(age = round(age, digits = 0)) %>%
+      filter(age == input$age) %>%
+      filter(sex == user_sex) %>%
+      select(ap_hi) %>%
+      colMeans()
+    user_ap_lo = cardio %>% 
+      mutate(age = round(age, digits = 0)) %>%
+      filter(age == input$age) %>%
+      filter(sex == user_sex) %>%
+      select(ap_lo) %>%
+      colMeans()
+  } else {
+    user_ap_hi = input$ap_hi
+    user_ap_lo = input$ap_lo
+  }
+  
+  if(input$idkchol) {
+    user_chol = cardio %>% 
+      mutate(age = round(age, digits = 0)) %>%
+      filter(age == input$age) %>%
+      filter(sex == user_sex) %>%
+      select(chol) %>%
+      colMeans() %>%
+      round(digits = 0)
+  } else {
+    if(input$chol > 240) user_chol = 3
+    else if(input$chol > 200) user_chol = 2
+    else user_chol = 1
+  }
+  
+  if(input$idkgluc) {
+    user_gluc = cardio %>% 
+      mutate(age = round(age, digits = 0)) %>%
+      filter(age == input$age) %>%
+      filter(sex == user_sex) %>%
+      select(gluc) %>%
+      colMeans() %>%
+      round(digits = 0)
+  } else {
+    if(input$gluc > 125) user_gluc = 3
+    else if(input$gluc > 100) user_gluc = 2
+    else user_gluc = 1
+  }
+  
+  ht_user = data.frame(age = input$age, sex = as.factor(user_sex), 
+                       height = input$height, weight = input$weight,
+                       ap_hi = user_ap_hi, ap_lo = user_ap_lo, 
+                       chol = as.factor(user_chol), gluc = as.factor(user_gluc),
+                       smoke = (input$smoke == "Yes"), alco = (input$alco == "Yes"),
+                       active = (input$active == "Yes"), output = 0)
+  
+  ht_user = rbind(ht_test, ht_user)
+  
+  x_user = model.matrix(output ~ age + sex + height + weight + ap_hi + ap_lo + chol + gluc + smoke + alco + active, data = ht_user)
+  
+  last(predict(fit1, newx = x_user, s = lambda, type = "response"))
+  
+})
+
+renderPrint({
+  
+  req(results())
+  
+  print(paste("Your chance of getting cardiovescular disease is:", 
+        round(results(), digits = 2)))
+  
+  if(results() < 0.25) print("Congratulations! You have a very strong heart <3")
+  else if (results() < 0.5) print("Try a healthier life style, you can do better!")
+  else if (results() < 0.75) print("Meh")
+  else print("Your heart is in danger... Go see a doctor! NOW!")
+  
+  })
+
+```
+
+
+Data Set
+=====================================  
+
+Column 
 -----------------------------------------------------------------------
 ### Raw data
 
@@ -39,8 +180,7 @@ ht = cardio %>%
   mutate(sex = as.factor(sex), chol = as.factor(chol), gluc = as.factor(gluc),
          smoke = as.logical(smoke), alco = as.logical(alco), active = as.logical(active))
 
-# htdf = select(cardio, -output)
-# datatable(htdf)
+datatable(ht)
 
 dt = sort(sample(nrow(ht), nrow(ht)*.9))
 ht_train = ht[dt,]
@@ -51,17 +191,51 @@ Column {data-width = 400}
 -----------------------------------------------------------------------
 ### Description
 
+Data:
+<br>A data set containing 70000 records of patient data. The raw data is downloaded from kaggle.com, which is a database website where data sets are publicly accessible for self investigation. A link can be find here: <br>[link](https://www.kaggle.com/sulianova/cardiovascular-disease-dataset)
+
+There are 3 types of input features:
+<br> Objective: factual information;
+<br> Examination: results of medical examination;
+<br> Subjective: information given by the patient.
+
+Variables:
+<br> 1. Age | Objective  | age | int (days)
+<br> 2. Sex | Objective | sex | 1 = Female, 2 = Male |
+<br> 3. Height | Objective | height | int (cm) |
+<br> 3. Weight | Objective | weight | float (kg) |
+<br> 5. Systolic blood pressure | Examination | ap_hi | int |
+<br> 6. Diastolic blood pressure | Examination | ap_lo | int |
+<br> 7. Cholesterol | Examination | chol | 1: normal (<= 200 mg/dL), 2: above normal (200-140 mg/dL), 3: well above normal (> 240 mg/dL)|
+<br> 8. Glucose | Examination | gluc | 1: normal (<= 100 mg/dL), 2: above normal (100-125 mg/dL), 3: well above normal (> 125 mg/dL) |
+<br> Smoking | Subjective | smoke | binary |
+<br> Alcohol intake | Subjective | alco | binary |
+<br> Physical activity | Subjective | active | binary |
+<br> Presence or absence of cardiovascular disease | Target Variable | cardio | binary |
+
+<br> All of the dataset values were collected at the moment of medical examination.
+
 
 Column {data-width = 400}
 -----------------------------------------------------------------------
 ### Correlation between variables
 
 ```{r}
-# cormat <- round(cor(htdf),2)
-# melted_cormat <- melt(cormat)
-# g = ggplot(data = melted_cormat,aes(x = "Variable", y = "Variable", fill = value)) 
-# g + geom_tile()
+cormat <- round(cor(cardio),2)
+melted_cormat <- melt(cormat)
+g = ggplot(data = melted_cormat,aes(x = "", y = "", fill = value)) 
+g + geom_tile()
 ```
+
+### Data distribution by sex
+
+```{r}
+tbl <- with(cardio, table(sex, output))
+
+ggplot(as.data.frame(tbl), aes(factor(output), Freq, fill = sex)) +     
+  geom_col(position = 'dodge')
+```
+
 
   
 Logistic Regression Model
@@ -72,25 +246,25 @@ Column
 ### GLM
 
 ```{r}
-#fit = glm(formula = output ~ age + sex + height + weight + ap_hi + ap_lo + chol + gluc + smoke + alco + active,
-#          family = "binomial", data = ht_train)
+fit = glm(formula = output ~ age + sex + height + weight + ap_hi + ap_lo + chol + gluc + smoke + alco + active,
+          family = "binomial", data = ht_train)
 
-#as.matrix(coef(fit))
+as.matrix(coef(fit))
 
-#prob = exp(predict(fit)) / (1 + exp(predict(fit)))
+prob = exp(predict(fit)) / (1 + exp(predict(fit)))
 
-#predict = rep(0, nrow(ht))
-#predict[prob > .5] = 1
+predict = rep(0, nrow(ht))
+predict[prob > .5] = 1
 
-#conf_matrix = table(predicted_values = predict, actual_values = ht$output)
+conf_matrix = table(predicted_values = predict, actual_values = ht$output)
 
-#accuracy = mean(predict == ht$output)
-#sens = sensitivity(conf_matrix)
-#spec = specificity(conf_matrix)
+accuracy = mean(predict == ht$output)
+sens = sensitivity(conf_matrix)
+spec = specificity(conf_matrix)
 
-#paste("accuracy:", accuracy)
-#paste("sensitivity:", sens)
-#paste("specificity:", spec)
+paste("accuracy:", accuracy)
+paste("sensitivity:", sens)
+paste("specificity:", spec)
 ```
 
 
@@ -127,98 +301,3 @@ paste("specificity:", spec1)
 ```
 
 
-Self Assessment
-=====================================  
-
-Column {.sidebar}
------------------------------------------------------------------------
-
-```{r}
-
-numericInput("age", "Age", step = 1, value = 40)
-
-selectInput("sex", "Sex", choices = list("Male", "Female", "Other"), selected = "Male")
-
-numericInput("height", "Height (cm)", step = 1, value = 170)
-
-numericInput("weight", "Weight (kg)", step = 1, value = 70)
-
-sliderInput("ap_hi", "Systolic Blood Pressure (mmHg)", min = 80, max = 200, value = 120)
-
-sliderInput("ap_lo", "Diastolic Blood Pressure (mmHg)", min = 40, max = 120, value = 80)
-
-checkboxInput("idkbp", "IDK my blood pressure.", value = FALSE)
-
-sliderInput("chol", "Serum Cholestoral (mg/dl)", min = 120, max = 600, value = 200)
-
-checkboxInput("idkchol", "IDK my serum cholesterol.", value = FALSE)
-
-sliderInput("fbs", "Fasting Blood Glucose", min = 50, max = 200, value = 80)
-
-checkboxInput("idkbg", "IDK my blood glucose.", value = FALSE)
-
-selectInput("smoke", "Do you smoke?", choices = list("Yes", "No"), selected = "No")
-
-selectInput("alco", "Do you use alcohol?", choices = list("Yes", "No"), selected = "No")
-
-selectInput("active", "Do you exercise?", choices = list("Yes", "No"), selected = "No")
-
-actionButton("submit", "Get my cardic health estimate")
-
-```
-
-
-Column
------------------------------------------------------------------------
-
-### Result
-
-```{r}
-
-results = eventReactive(input$submit, {
-  
-  if(input$sex == "Male") user_sex = 2 else user_sex = 1
-  
-  ht_user = data.frame(age = input$age, sex = as.factor(user_sex), 
-                       height = input$height, weight = input$weight,
-                       ap_hi = input$ap_hi, ap_lo = input$ap_lo, 
-                       chol = as.factor(input$chol), gluc = as.factor(input$gluc),
-                       smoke = (input$smoke == "Yes"), alco = (input$alco == "Yes"),
-                       active = (input$active == "Yes"), output = 0)
-  
-  ht_user = rbind(ht_test, ht_user)
-  
-  x_user = model.matrix(output ~ age + sex + height + weight + ap_hi + ap_lo + chol + gluc + smoke + alco + active, data = ht_user)
-  
-  last(predict(fit1, newx = x_user, s = lambda, type = "response"))
-  
-})
-
-renderPrint({
-  
-  req(results())
-  
-  results()
-  
-  })
-
-```
-
-Column
------------------------------------------------------------------------
-
-### Chart B
-
-```{r}
-
-```
-
-### Chart C
-
-```{r}
-
-```
-
-
-Contribute to the dataset
-=====================================
