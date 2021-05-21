@@ -180,7 +180,7 @@ ht = cardio %>%
   mutate(sex = as.factor(sex), chol = as.factor(chol), gluc = as.factor(gluc),
          smoke = as.logical(smoke), alco = as.logical(alco), active = as.logical(active))
 
-datatable(ht)
+datatable(head(cardio, 100))
 
 dt = sort(sample(nrow(ht), nrow(ht)*.9))
 ht_train = ht[dt,]
@@ -192,7 +192,8 @@ Column {data-width = 400}
 ### Description
 
 Data:
-<br>A data set containing 70000 records of patient data. The raw data is downloaded from kaggle.com, which is a database website where data sets are publicly accessible for self investigation. A link can be find here: <br>[link](https://www.kaggle.com/sulianova/cardiovascular-disease-dataset)
+<br> A data set containing 70000 records of patient data. The raw data is downloaded from kaggle.com, which is a database website where data sets are publicly accessible for self investigation. A link can be find here: 
+<br> [link](https://www.kaggle.com/sulianova/cardiovascular-disease-dataset)
 
 There are 3 types of input features:
 <br> Objective: factual information;
@@ -208,10 +209,10 @@ Variables:
 <br> 6. Diastolic blood pressure | Examination | ap_lo | int |
 <br> 7. Cholesterol | Examination | chol | 1: normal (<= 200 mg/dL), 2: above normal (200-140 mg/dL), 3: well above normal (> 240 mg/dL)|
 <br> 8. Glucose | Examination | gluc | 1: normal (<= 100 mg/dL), 2: above normal (100-125 mg/dL), 3: well above normal (> 125 mg/dL) |
-<br> Smoking | Subjective | smoke | binary |
-<br> Alcohol intake | Subjective | alco | binary |
-<br> Physical activity | Subjective | active | binary |
-<br> Presence or absence of cardiovascular disease | Target Variable | cardio | binary |
+<br> 9. Smoking | Subjective | smoke | binary |
+<br> 10. Alcohol intake | Subjective | alco | binary |
+<br> 11. Physical activity | Subjective | active | binary |
+<br> 12. Presence or absence of cardiovascular disease | Target Variable | cardio | binary |
 
 <br> All of the dataset values were collected at the moment of medical examination.
 
@@ -223,7 +224,7 @@ Column {data-width = 400}
 ```{r}
 cormat <- round(cor(cardio),2)
 melted_cormat <- melt(cormat)
-g = ggplot(data = melted_cormat,aes(x = "", y = "", fill = value)) 
+g = ggplot(data = melted_cormat, aes(x = Var1, y = Var2, fill = value)) 
 g + geom_tile()
 ```
 
@@ -237,7 +238,6 @@ ggplot(as.data.frame(tbl), aes(factor(output), Freq, fill = sex)) +
 ```
 
 
-  
 Logistic Regression Model
 =====================================  
 
