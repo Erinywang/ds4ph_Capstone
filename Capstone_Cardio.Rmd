@@ -1,0 +1,224 @@
+---
+title: "Cardic Health Assessment Tool"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(leaflet)
+library(plotly)
+library(DT)
+library(glmnet)
+library(caret)
+library(bslib)
+```
+
+
+Data Set
+=====================================  
+
+Column {data-height = 4000 .tabset}
+-----------------------------------------------------------------------
+### Raw data
+
+```{r}
+cardio = read_csv2("https://raw.githubusercontent.com/ebifryy/ds4ph_Capstone/main/cardio.csv") %>% 
+  rename(sex = gender, chol = cholesterol, output = cardio) %>% 
+  select(-id) %>% 
+  mutate(age = age/365, weight = weight/10)
+
+ht = cardio %>%
+  mutate(sex = as.factor(sex), chol = as.factor(chol), gluc = as.factor(gluc),
+         smoke = as.logical(smoke), alco = as.logical(alco), active = as.logical(active))
+
+# htdf = select(cardio, -output)
+# datatable(htdf)
+
+dt = sort(sample(nrow(ht), nrow(ht)*.9))
+ht_train = ht[dt,]
+ht_test = ht[-dt,]
+```
+
+Column {data-width = 400}
+-----------------------------------------------------------------------
+### Description
+
+
+Column {data-width = 400}
+-----------------------------------------------------------------------
+### Correlation between variables
+
+```{r}
+# cormat <- round(cor(htdf),2)
+# melted_cormat <- melt(cormat)
+# g = ggplot(data = melted_cormat,aes(x = "Variable", y = "Variable", fill = value)) 
+# g + geom_tile()
+```
+
+  
+Logistic Regression Model
+=====================================  
+
+Column
+-----------------------------------------------------------------------
+### GLM
+
+```{r}
+#fit = glm(formula = output ~ age + sex + height + weight + ap_hi + ap_lo + chol + gluc + smoke + alco + active,
+#          family = "binomial", data = ht_train)
+
+#as.matrix(coef(fit))
+
+#prob = exp(predict(fit)) / (1 + exp(predict(fit)))
+
+#predict = rep(0, nrow(ht))
+#predict[prob > .5] = 1
+
+#conf_matrix = table(predicted_values = predict, actual_values = ht$output)
+
+#accuracy = mean(predict == ht$output)
+#sens = sensitivity(conf_matrix)
+#spec = specificity(conf_matrix)
+
+#paste("accuracy:", accuracy)
+#paste("sensitivity:", sens)
+#paste("specificity:", spec)
+```
+
+
+Column
+-----------------------------------------------------------------------
+### Lasso GLM
+
+```{r}
+x_train = model.matrix(output ~ age + sex + height + weight + ap_hi + ap_lo + chol + gluc + smoke + alco + active, data = ht_train)
+y_train = ht_train$output
+
+fit1 = cv.glmnet(x_train, y_train, alpha = 0.2, family = "binomial", type.measure = "mse")
+
+lambda = fit1$lambda.1se
+coef(fit1,s = lambda)
+
+x_test = model.matrix(output ~ age + sex + height + weight + ap_hi + ap_lo + chol + gluc + smoke + alco + active, data = ht_test)
+
+prob1 = predict(fit1, newx = x_test, s = lambda, type = "response")
+
+predict1 = rep(0, nrow(ht_test))
+predict1[prob1 > .5] = 1
+
+conf_matrix1 = table(predicted_values = predict1, actual_values = ht_test$output)
+
+accuracy1 = mean(predict1 == ht_test$output)
+sens1 = sensitivity(conf_matrix1)
+spec1 = specificity(conf_matrix1)
+
+
+paste("accuracy:", accuracy1)
+paste("sensitivity:", sens1)
+paste("specificity:", spec1)
+```
+
+
+Self Assessment
+=====================================  
+
+Column {.sidebar}
+-----------------------------------------------------------------------
+
+```{r}
+
+numericInput("age", "Age", step = 1, value = 40)
+
+selectInput("sex", "Sex", choices = list("Male", "Female", "Other"), selected = "Male")
+
+numericInput("height", "Height (cm)", step = 1, value = 170)
+
+numericInput("weight", "Weight (kg)", step = 1, value = 70)
+
+sliderInput("ap_hi", "Systolic Blood Pressure (mmHg)", min = 80, max = 200, value = 120)
+
+sliderInput("ap_lo", "Diastolic Blood Pressure (mmHg)", min = 40, max = 120, value = 80)
+
+checkboxInput("idkbp", "IDK my blood pressure.", value = FALSE)
+
+sliderInput("chol", "Serum Cholestoral (mg/dl)", min = 120, max = 600, value = 200)
+
+checkboxInput("idkchol", "IDK my serum cholesterol.", value = FALSE)
+
+sliderInput("fbs", "Fasting Blood Glucose", min = 50, max = 200, value = 80)
+
+checkboxInput("idkbg", "IDK my blood glucose.", value = FALSE)
+
+selectInput("smoke", "Do you smoke?", choices = list("Yes", "No"), selected = "No")
+
+selectInput("alco", "Do you use alcohol?", choices = list("Yes", "No"), selected = "No")
+
+selectInput("active", "Do you exercise?", choices = list("Yes", "No"), selected = "No")
+
+actionButton("submit", "Get my cardic health estimate")
+
+```
+
+
+Column
+-----------------------------------------------------------------------
+
+### Result
+
+```{r}
+
+results = eventReactive(input$submit, {
+  
+  if(input$sex == "Male") user_sex = 2 else user_sex = 1
+  
+  ht_user = data.frame(age = input$age, sex = as.factor(user_sex), 
+                       height = input$height, weight = input$weight,
+                       ap_hi = input$ap_hi, ap_lo = input$ap_lo, 
+                       chol = as.factor(input$chol), gluc = as.factor(input$gluc),
+                       smoke = (input$smoke == "Yes"), alco = (input$alco == "Yes"),
+                       active = (input$active == "Yes"), output = 0)
+  
+  ht_user = rbind(ht_test, ht_user)
+  
+  x_user = model.matrix(output ~ age + sex + height + weight + ap_hi + ap_lo + chol + gluc + smoke + alco + active, data = ht_user)
+  
+  last(predict(fit1, newx = x_user, s = lambda, type = "response"))
+  
+})
+
+renderPrint({
+  
+  req(results())
+  
+  results()
+  
+  })
+
+```
+
+Column
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+```
+
+### Chart C
+
+```{r}
+
+```
+
+
+Contribute to the dataset
+=====================================
