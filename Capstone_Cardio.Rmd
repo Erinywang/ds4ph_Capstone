@@ -84,15 +84,18 @@ results = eventReactive(input$submit, {
   if(input$sex == "Male") user_sex = 2 else user_sex = 1
   
   if(input$idkbp) {
+    if(input$age < 30) age_bp = 30
+    else if(input$age > 65) age_bp = 65
+    else age_bp = input$age
     user_ap_hi = cardio %>% 
       mutate(age = round(age, digits = 0)) %>%
-      filter(age == input$age) %>%
+      filter(age == age_bp) %>%
       filter(sex == user_sex) %>%
       select(ap_hi) %>%
       colMeans()
     user_ap_lo = cardio %>% 
       mutate(age = round(age, digits = 0)) %>%
-      filter(age == input$age) %>%
+      filter(age == age_bp) %>%
       filter(sex == user_sex) %>%
       select(ap_lo) %>%
       colMeans()
@@ -102,9 +105,11 @@ results = eventReactive(input$submit, {
   }
   
   if(input$idkchol) {
-    user_chol = cardio %>% 
-      mutate(age = round(age, digits = 0)) %>%
-      filter(age == input$age) %>%
+    if(input$age < 30) age_chol = 30
+    else if(input$age > 65) age_chol = 65
+    else age_chol = input$age
+    user_chol = cardio_int %>%
+      filter(age == age_chol) %>%
       filter(sex == user_sex) %>%
       select(chol) %>%
       colMeans() %>%
@@ -116,9 +121,11 @@ results = eventReactive(input$submit, {
   }
   
   if(input$idkgluc) {
-    user_gluc = cardio %>% 
-      mutate(age = round(age, digits = 0)) %>%
-      filter(age == input$age) %>%
+    if(input$age < 30) age_gluc = 30
+    else if(input$age > 65) age_gluc = 65
+    else age_gluc = input$age
+    user_gluc = cardio_int %>%
+      filter(age == age_gluc) %>%
       filter(sex == user_sex) %>%
       select(gluc) %>%
       colMeans() %>%
@@ -181,6 +188,8 @@ ht = cardio %>%
          smoke = as.logical(smoke), alco = as.logical(alco), active = as.logical(active))
 
 datatable(head(cardio, 100))
+
+cardio_int = cardio %>% mutate(age = round(age, digits = 0))
 
 dt = sort(sample(nrow(ht), nrow(ht)*.9))
 ht_train = ht[dt,]
